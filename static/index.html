@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video to Doc</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 2rem;
+            background: #f9fafb;
+            color: #1a1a1a;
+        }
+        h1 { margin-bottom: 0.5rem; }
+        .subtitle { color: #6b7280; margin-bottom: 2rem; }
+        
+        .dropzone {
+            border: 2px dashed #d1d5db;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: white;
+        }
+        .dropzone:hover, .dropzone.dragover {
+            border-color: #2563eb;
+            background: #eff6ff;
+        }
+        .dropzone p { margin: 0.5rem 0; }
+        .dropzone .icon { font-size: 3rem; margin-bottom: 1rem; }
+        .dropzone small { color: #9ca3af; }
+        
+        .file-info {
+            display: none;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid #e5e7eb;
+        }
+        .file-info.visible { display: flex; align-items: center; gap: 1rem; }
+        .file-info .name { flex: 1; font-weight: 500; }
+        .file-info .remove { 
+            color: #ef4444; 
+            cursor: pointer; 
+            background: none; 
+            border: none;
+            font-size: 1.2rem;
+        }
+        
+        .progress-section {
+            display: none;
+            margin-top: 1.5rem;
+        }
+        .progress-section.visible { display: block; }
+        .status-text { 
+            color: #6b7280; 
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .spinner {
+            width: 16px;
+            height: 16px;
+            border: 2px solid #e5e7eb;
+            border-top-color: #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .progress-bar {
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: #2563eb;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        
+        button.primary {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            width: 100%;
+            transition: background 0.2s;
+        }
+        button.primary:hover { background: #1d4ed8; }
+        button.primary:disabled { 
+            background: #9ca3af; 
+            cursor: not-allowed; 
+        }
+        
+        .download-section {
+            display: none;
+            margin-top: 1.5rem;
+            padding: 1.5rem;
+            background: #ecfdf5;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .download-section.visible { display: block; }
+        .download-section .success { 
+            color: #059669; 
+            font-weight: 500;
+            margin-bottom: 1rem;
+        }
+        .download-section a {
+            display: inline-block;
+            background: #059669;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .download-section a:hover { background: #047857; }
+        
+        .error {
+            display: none;
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #fef2f2;
+            border-radius: 8px;
+            color: #dc2626;
+        }
+        .error.visible { display: block; }
+    </style>
+</head>
+<body>
+    <h1>Video to Documentation</h1>
+    <p class="subtitle">Upload a screen recording and get a PDF how-to guide.</p>
+    
+    <div class="dropzone" id="dropzone">
+        <div class="icon">📹</div>
+        <p>Drag & drop video here</p>
+        <p>or click to select</p>
+        <small>Supports: MP4, MOV, WebM (max 500MB)</small>
+    </div>
+    <input type="file" id="fileInput" accept=".mp4,.mov,.webm" hidden>
+    
+    <div class="file-info" id="fileInfo">
+        <span class="name" id="fileName"></span>
+        <button class="remove" id="removeFile">×</button>
+    </div>
+    
+    <button class="primary" id="processBtn" disabled>Generate Documentation</button>
+    
+    <div class="progress-section" id="progressSection">
+        <div class="status-text">
+            <div class="spinner"></div>
+            <span id="statusText">Processing...</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+        </div>
+    </div>
+    
+    <div class="download-section" id="downloadSection">
+        <p class="success">✓ Documentation generated successfully!</p>
+        <a id="downloadLink" href="#">Download PDF</a>
+    </div>
+    
+    <div class="error" id="errorSection"></div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const removeFile = document.getElementById('removeFile');
+        const processBtn = document.getElementById('processBtn');
+        const progressSection = document.getElementById('progressSection');
+        const statusText = document.getElementById('statusText');
+        const progressFill = document.getElementById('progressFill');
+        const downloadSection = document.getElementById('downloadSection');
+        const downloadLink = document.getElementById('downloadLink');
+        const errorSection = document.getElementById('errorSection');
+        
+        let selectedFile = null;
+        let currentJobId = null;
+        
+        // Drag and drop
+        dropzone.addEventListener('click', () => fileInput.click());
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && isValidVideo(file)) {
+                selectFile(file);
+            }
+        });
+        
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) selectFile(file);
+        });
+        
+        removeFile.addEventListener('click', () => {
+            selectedFile = null;
+            fileInfo.classList.remove('visible');
+            processBtn.disabled = true;
+            fileInput.value = '';
+        });
+        
+        function isValidVideo(file) {
+            const validTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
+            return validTypes.includes(file.type);
+        }
+        
+        function selectFile(file) {
+            selectedFile = file;
+            fileName.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+            fileInfo.classList.add('visible');
+            processBtn.disabled = false;
+            downloadSection.classList.remove('visible');
+            errorSection.classList.remove('visible');
+        }
+        
+        processBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            processBtn.disabled = true;
+            progressSection.classList.add('visible');
+            downloadSection.classList.remove('visible');
+            errorSection.classList.remove('visible');
+            
+            try {
+                // Upload
+                updateStatus('Uploading video...', 10);
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+                
+                const uploadRes = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadRes.ok) {
+                    const errorData = await uploadRes.json();
+                    throw new Error(errorData.detail || 'Upload failed');
+                }
+                
+                const { job_id } = await uploadRes.json();
+                currentJobId = job_id;
+                
+                // Start processing
+                updateStatus('Starting processing...', 20);
+                const processRes = await fetch(`/process/${job_id}`, { method: 'POST' });
+                
+                if (!processRes.ok) {
+                    const errorData = await processRes.json();
+                    throw new Error(errorData.detail || 'Processing failed to start');
+                }
+                
+                // Poll for status
+                pollStatus(job_id);
+                
+            } catch (err) {
+                showError(err.message);
+            }
+        });
+        
+        async function pollStatus(jobId) {
+            const statusMap = {
+                'uploaded': { text: 'Uploaded', progress: 20 },
+                'processing': { text: 'Processing...', progress: 30 },
+                'extracting_frames': { text: 'Extracting frames...', progress: 40 },
+                'analyzing': { text: 'Analyzing with Azure OpenAI GPT-4o...', progress: 60 },
+                'generating_pdf': { text: 'Generating PDF...', progress: 80 },
+                'complete': { text: 'Complete!', progress: 100 },
+                'error': { text: 'Error', progress: 0 }
+            };
+            
+            try {
+                const res = await fetch(`/status/${jobId}`);
+                if (!res.ok) {
+                    throw new Error('Failed to get status');
+                }
+                const data = await res.json();
+                
+                if (data.status === 'complete') {
+                    updateStatus('Complete!', 100);
+                    downloadLink.href = `/download/${jobId}`;
+                    downloadSection.classList.add('visible');
+                    progressSection.classList.remove('visible');
+                    processBtn.disabled = false;
+                } else if (data.status === 'error') {
+                    showError(data.error || 'Processing failed');
+                } else {
+                    const info = statusMap[data.status] || { text: 'Processing...', progress: 50 };
+                    updateStatus(info.text, info.progress);
+                    setTimeout(() => pollStatus(jobId), 1000);
+                }
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+        
+        function updateStatus(text, progress) {
+            statusText.textContent = text;
+            progressFill.style.width = `${progress}%`;
+        }
+        
+        function showError(message) {
+            errorSection.textContent = `Error: ${message}`;
+            errorSection.classList.add('visible');
+            progressSection.classList.remove('visible');
+            processBtn.disabled = false;
+        }
+    </script>
+</body>
+</html>
+
