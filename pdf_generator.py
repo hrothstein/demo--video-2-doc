@@ -180,8 +180,8 @@ def generate_pdf_v2(
             story.append(Spacer(1, 6))
             continue
         
-        # Check for frame reference
-        frame_match = re.match(r'\[FRAME:(\d+)\]', line)
+        # Check for frame reference (use search instead of match to find anywhere in line)
+        frame_match = re.search(r'\[FRAME:(\d+)\]', line)
         if frame_match:
             frame_num = int(frame_match.group(1))
             
@@ -196,6 +196,8 @@ def generate_pdf_v2(
                 if not os.path.exists(img_path):
                     logger.warning(f"Frame image not found: {img_path} - skipping")
                     continue
+                
+                logger.info(f"Embedding frame {frame_num} from {img_path}")
                 
                 # Resize image: max 1200px width, maintain aspect ratio
                 try:
