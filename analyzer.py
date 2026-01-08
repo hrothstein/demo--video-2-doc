@@ -209,15 +209,17 @@ def analyze_frames_v2(
     num_key_frames = len(key_frame_paths)
     image_content.append({
         "type": "text",
-        "text": f"CRITICAL: You will see {num_key_frames} KEY FRAMES labeled as 'KEY FRAME 1', 'KEY FRAME 2', etc. up to 'KEY FRAME {num_key_frames}'. When writing [FRAME:N], you MUST use ONLY the KEY FRAME number (1-{num_key_frames}), NEVER the raw frame number. Example: If you see 'Frame 22 (KEY FRAME 5)', use [FRAME:5], NOT [FRAME:22]. Any [FRAME:N] with N > {num_key_frames} is INVALID."
+        "text": f"CRITICAL INSTRUCTION: You will see frames labeled as 'KEY FRAME 1', 'KEY FRAME 2', etc. up to 'KEY FRAME {num_key_frames}'. When writing [FRAME:N], you MUST use the number from the KEY FRAME label (1-{num_key_frames}). You will also see frames labeled 'Frame X (not a key frame)' - DO NOT reference these. ONLY reference KEY FRAMES numbered 1-{num_key_frames}. Any other number is INVALID and will be ignored."
     })
     
     for i, path in enumerate(all_frame_paths):
-        # Mark key frames
+        # Mark key frames - use ONLY KEY FRAME number to avoid confusion
         if path in key_frame_set:
-            label = f"Frame {i+1} (KEY FRAME {key_frame_index[path]}):"
+            # Only show KEY FRAME number, not raw frame number, to prevent confusion
+            label = f"KEY FRAME {key_frame_index[path]}:"
         else:
-            label = f"Frame {i+1}:"
+            # Non-key frames just show as regular frames
+            label = f"Frame {i+1} (not a key frame - do not reference):"
         
         image_content.append({"type": "text", "text": label})
         image_content.append({
