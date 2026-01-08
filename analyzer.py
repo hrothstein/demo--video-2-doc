@@ -94,6 +94,13 @@ Return your response in this exact markdown structure:
 **Action:** ...
 ...continue for all steps...
 
+**IMPORTANT EXAMPLE**: If the final step shows a completed project structure (like a file explorer with created files), you MUST include it like this:
+### Step 12: Verify Project Creation
+[FRAME:18]
+**Action:** Check the Explorer panel
+**Location:** Left sidebar
+**Details:** You should see the scaffolded project structure with folders and files
+
 ## Notes
 - [Any warnings, tips, or troubleshooting observed]
 
