@@ -24,7 +24,7 @@ jobs = {}
 # Configuration
 MAX_FILE_SIZE_MB = int(os.getenv("MAX_FILE_SIZE_MB", 500))
 MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
-MAX_KEY_FRAMES = int(os.getenv("MAX_KEY_FRAMES", 10))
+MAX_KEY_FRAMES = int(os.getenv("MAX_KEY_FRAMES", 18))
 REDACTION_MODE = os.getenv("REDACTION_MODE", "blur")
 ENABLE_NAME_DETECTION = os.getenv("ENABLE_NAME_DETECTION", "false").lower() == "true"
 OCR_GPU = os.getenv("OCR_GPU", "false").lower() == "true"
