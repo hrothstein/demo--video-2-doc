@@ -81,7 +81,13 @@ Return your response in this exact markdown structure:
 ## Rules for Frame References
 - Use [FRAME:N] tags to indicate which key frame should appear with each step
 - Place the frame reference on its own line right after the step heading
-- Not every step needs a frame — only include when the visual adds clarity
+- **IMPORTANT: Always include screenshots for key outcomes and results**, such as:
+  - Completed project structures (folder trees, file explorers, scaffolded code)
+  - Success messages or confirmation dialogs
+  - Final states after important actions (created files, opened views, etc.)
+  - Visual results that show what was accomplished
+- **CRITICAL: If you see a scaffolded project structure, file explorer showing created files, or any final result state, you MUST include a [FRAME:N] reference for it**
+- Not every step needs a frame — but prioritize including frames that show outcomes/results over intermediate steps
 - A frame can be referenced in multiple steps if relevant
 - Reference frames by their KEY FRAME number (1, 2, 3...), not the raw frame number
 

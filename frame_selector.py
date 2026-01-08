@@ -49,11 +49,24 @@ def select_key_frames(frame_paths: list[str], max_embed: int = 10) -> list[str]:
     indexed_diffs = list(enumerate(differences))
     indexed_diffs.sort(key=lambda x: x[1], reverse=True)
     
-    # Always include first and last
+    # Always include first and last (last frame often shows final result)
     selected_indices = {0, len(frame_paths) - 1}
     
-    # Add highest-change frames until we hit max
-    for idx, _ in indexed_diffs:
+    # Boost scores for frames in the last 30% (often show final results/outcomes)
+    last_30_percent_start = int(len(frame_paths) * 0.7)
+    boosted_diffs = []
+    for idx, diff in indexed_diffs:
+        # Boost frames in last 30% by 20% to prioritize result frames
+        if idx >= last_30_percent_start:
+            boosted_diffs.append((idx, diff * 1.2))
+        else:
+            boosted_diffs.append((idx, diff))
+    
+    # Re-sort with boosted scores
+    boosted_diffs.sort(key=lambda x: x[1], reverse=True)
+    
+    # Add highest-change frames (with boost for late frames) until we hit max
+    for idx, _ in boosted_diffs:
         if len(selected_indices) >= max_embed:
             break
         selected_indices.add(idx)
