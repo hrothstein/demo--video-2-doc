@@ -19,48 +19,53 @@ def generate_pdf(markdown_content: str, output_path: str):
     
     styles = getSampleStyleSheet()
     
-    # Custom styles
-    styles.add(ParagraphStyle(
-        name='DocTitle',
-        parent=styles['Title'],
-        fontSize=20,
-        spaceAfter=20,
-        textColor=HexColor('#1a1a1a')
-    ))
+    # Custom styles - only add if they don't already exist
+    if 'DocTitle' not in styles.byName:
+        styles.add(ParagraphStyle(
+            name='DocTitle',
+            parent=styles['Title'],
+            fontSize=20,
+            spaceAfter=20,
+            textColor=HexColor('#1a1a1a')
+        ))
     
-    styles.add(ParagraphStyle(
-        name='SectionHead',
-        parent=styles['Heading1'],
-        fontSize=14,
-        spaceBefore=15,
-        spaceAfter=8,
-        textColor=HexColor('#2563eb')
-    ))
+    if 'SectionHead' not in styles.byName:
+        styles.add(ParagraphStyle(
+            name='SectionHead',
+            parent=styles['Heading1'],
+            fontSize=14,
+            spaceBefore=15,
+            spaceAfter=8,
+            textColor=HexColor('#2563eb')
+        ))
     
-    styles.add(ParagraphStyle(
-        name='StepHead',
-        parent=styles['Heading2'],
-        fontSize=12,
-        spaceBefore=12,
-        spaceAfter=6,
-        textColor=HexColor('#1e40af')
-    ))
+    if 'StepHead' not in styles.byName:
+        styles.add(ParagraphStyle(
+            name='StepHead',
+            parent=styles['Heading2'],
+            fontSize=12,
+            spaceBefore=12,
+            spaceAfter=6,
+            textColor=HexColor('#1e40af')
+        ))
     
-    styles.add(ParagraphStyle(
-        name='BodyText',
-        parent=styles['Normal'],
-        fontSize=10,
-        spaceAfter=6,
-        leading=14
-    ))
+    if 'BodyText' not in styles.byName:
+        styles.add(ParagraphStyle(
+            name='BodyText',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=6,
+            leading=14
+        ))
     
-    styles.add(ParagraphStyle(
-        name='BoldLabel',
-        parent=styles['Normal'],
-        fontSize=10,
-        spaceAfter=4,
-        leading=14
-    ))
+    if 'BoldLabel' not in styles.byName:
+        styles.add(ParagraphStyle(
+            name='BoldLabel',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=4,
+            leading=14
+        ))
     
     story = []
     
