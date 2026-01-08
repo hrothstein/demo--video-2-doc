@@ -122,8 +122,10 @@ Return your response in this exact markdown structure:
 - **Select frames that show outcomes, not just actions**: Prioritize frames that show results over frames that only show actions being performed
 - Include frame references for at least 50% of your steps - more is better
 - A frame can be referenced in multiple steps if relevant
-- Reference frames by their KEY FRAME number (1, 2, 3...), not the raw frame number
-- **If you see a completed project structure, final result, or outcome state, you MUST include a [FRAME:N] reference for it**
+- **CRITICAL: Reference frames by their KEY FRAME number ONLY, NOT the raw frame number**
+- **Example**: If you see "Frame 22 (KEY FRAME 5)", you MUST use [FRAME:5], NOT [FRAME:22]
+- **You can ONLY reference KEY FRAMES numbered 1-18. Any number above 18 is INVALID and will be ignored.**
+- **If you see a completed project structure, final result, or outcome state, you MUST include a [FRAME:N] reference for it using the KEY FRAME number (1-18)**
 
 ## Writing Rules (CRITICAL - Follow These Closely)
 - Be detailed and specific — include exact text shown in UI for button names, menu items, field labels, popup messages
@@ -203,10 +205,11 @@ def analyze_frames_v2(
     key_frame_index = {path: i+1 for i, path in enumerate(key_frame_paths)}
     
     image_content = []
-    # Add instruction at the start about key frames
+    # Add instruction at the start about key frames - make it VERY explicit
+    num_key_frames = len(key_frame_paths)
     image_content.append({
         "type": "text",
-        "text": f"IMPORTANT: You will see {len(key_frame_paths)} KEY FRAMES marked as 'KEY FRAME 1', 'KEY FRAME 2', etc. Use these KEY FRAME numbers (1-{len(key_frame_paths)}) in your [FRAME:N] references, NOT the raw frame numbers."
+        "text": f"CRITICAL: You will see {num_key_frames} KEY FRAMES labeled as 'KEY FRAME 1', 'KEY FRAME 2', etc. up to 'KEY FRAME {num_key_frames}'. When writing [FRAME:N], you MUST use ONLY the KEY FRAME number (1-{num_key_frames}), NEVER the raw frame number. Example: If you see 'Frame 22 (KEY FRAME 5)', use [FRAME:5], NOT [FRAME:22]. Any [FRAME:N] with N > {num_key_frames} is INVALID."
     })
     
     for i, path in enumerate(all_frame_paths):
