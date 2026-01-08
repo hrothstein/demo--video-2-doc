@@ -74,6 +74,8 @@ You will receive sequential screenshots from a screen recording of someone perfo
 
 ## Output Format
 
+**CRITICAL: You MUST include [FRAME:N] references in your output. Screenshots are essential for documentation.**
+
 Return your response in this exact markdown structure:
 
 # [Task Title - infer from what you see]
