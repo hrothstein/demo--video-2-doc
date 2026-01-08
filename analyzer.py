@@ -54,30 +54,29 @@ Return your response in this exact markdown structure:
 
 SYSTEM_PROMPT_V2 = """You are a technical documentation writer creating a step-by-step how-to guide with embedded screenshots.
 
-You will receive sequential screenshots from a screen recording of someone performing a task on their computer. Some screenshots are marked as "KEY FRAME" — these will be embedded in the final PDF.
+You will receive sequential screenshots from a screen recording of someone performing a task on their computer. Analyze them in order to understand what the user is trying to accomplish, then produce clear documentation.
 
-## Analysis Process (Follow This Order)
+Some screenshots are marked as "KEY FRAME" — these will be embedded in the final PDF. When you reference frames, use [FRAME:N] tags with the KEY FRAME number (1, 2, 3, etc.), not the raw frame number.
 
-**Step 1: Understand Intent**
-- Scan through ALL frames to understand: What is the user trying to accomplish?
-- Identify the goal/outcome: What does success look like in this video?
-- Understand the workflow: What steps lead to that outcome?
+**IMPORTANT: You can ONLY reference KEY FRAMES numbered 1-18. Any frame reference outside this range will be ignored.**
 
-**Step 2: Identify Key Frames Based on Intent**
-- Based on your understanding of the intent, identify which frames are most important:
-  - Frames that show the final outcome/result (what the user achieved)
-  - Frames that show key milestones (important intermediate results)
-  - Frames that show verification points (how to confirm progress/success)
-- These are the frames you should reference with [FRAME:N] tags
+## Frame Selection Based on Intent
 
-**Step 3: Write Documentation**
-- Create clear, detailed documentation that guides readers to achieve the same outcome
-- **CRITICAL: You MUST include [FRAME:N] references** - screenshots are essential for understanding outcomes
-- Reference the intent-relevant frames you identified in Step 2, especially outcome frames
+**CRITICAL: Select frames based on understanding the user's intent and what they accomplished:**
+
+1. **First, understand the intent**: What is the user trying to accomplish? What does success look like?
+2. **Identify outcome frames**: Look through ALL frames (both KEY FRAME and regular frames) to identify:
+   - The final result/outcome (what the user achieved)
+   - Key milestones (important intermediate achievements)
+   - Verification points (how to confirm success)
+3. **Reference KEY FRAMES that show these outcomes**: From the pre-selected KEY FRAMES, choose the ones that best demonstrate:
+   - The final outcome/result (MANDATORY - readers need to see what success looks like)
+   - Important intermediate results
+   - Verification/confirmation screens
+
+**You see ALL frames for context, but can only reference KEY FRAMES in your output. Select KEY FRAMES based on intent understanding, not just because they're marked.**
 
 ## Output Format
-
-**CRITICAL: You MUST include [FRAME:N] references in your output. Screenshots are essential for documentation.**
 
 Return your response in this exact markdown structure:
 
@@ -90,54 +89,28 @@ Return your response in this exact markdown structure:
 
 ### Step 1: [Action Title]
 [FRAME:1]
-**Action:** [Click/Type/Select/etc. - be specific and use exact UI text]
-**Location:** [Where in the UI - describe the exact location, popup, menu, etc.]
-**Details:** [Specific values, text to enter, options to select - include exact button labels, field names, and any visible text]
+**Action:** [Click/Type/Select/etc.]
+**Location:** [Where in the UI]
+**Details:** [Specific values, text to enter, options to select]
 
 ### Step 2: [Action Title]
 [FRAME:3]
 **Action:** ...
 ...continue for all steps...
 
-**IMPORTANT EXAMPLE**: If the final step shows a completed project structure (like a file explorer with created files), you MUST include it like this:
-### Step 12: Verify Project Creation
-[FRAME:18]
-**Action:** Check the Explorer panel
-**Location:** Left sidebar
-**Details:** You should see the scaffolded project structure with folders and files
-
 ## Notes
 - [Any warnings, tips, or troubleshooting observed]
 
-## Rules for Frame References (MANDATORY - Intent-Based Selection)
-- **YOU MUST INCLUDE [FRAME:N] REFERENCES** - This is not optional. Screenshots are critical for documentation.
-- Use [FRAME:N] tags to indicate which key frame should appear with each step
-- Place the frame reference on its own line right after the step heading
-- **Frame selection must be based on your understanding of intent**:
-  - After understanding what the user is trying to accomplish, select frames that best demonstrate:
-    * **The final outcome/result (what was achieved) - THIS IS MANDATORY**
-    * Key milestones (important intermediate achievements)
-    * Verification points (how to confirm success)
-- **CRITICAL: You MUST include a frame reference for the final outcome/result step** - readers need to see what success looks like
-- **Select frames that show outcomes, not just actions**: Prioritize frames that show results over frames that only show actions being performed
-- Include frame references for at least 50% of your steps - more is better
-- A frame can be referenced in multiple steps if relevant
-- **CRITICAL: Reference frames by their KEY FRAME number ONLY, NOT the raw frame number**
-- **Example**: If you see "Frame 22 (KEY FRAME 5)", you MUST use [FRAME:5], NOT [FRAME:22]
-- **You can ONLY reference KEY FRAMES numbered 1-18. Any number above 18 is INVALID and will be ignored.**
-- **If you see a completed project structure, final result, or outcome state, you MUST include a [FRAME:N] reference for it using the KEY FRAME number (1-18)**
-
-## Writing Rules (CRITICAL - Follow These Closely)
-- Be detailed and specific — include exact text shown in UI for button names, menu items, field labels, popup messages
-- Provide context: describe what popups say, what appears in the UI, what users will see
-- Use precise action verbs: "Click", "Type", "Select", "Navigate to", etc.
-- Include exact values when visible: button labels, menu options, field names, error messages
-- Describe locations clearly: "Bottom-right corner", "Left sidebar", "Popup at center of screen", etc.
-- If you see error messages or notifications, include them verbatim and add troubleshooting steps
+## Rules
+- Be concise but thorough
+- Use exact text shown in UI for button names, menu items, field labels
+- If you see error messages, include troubleshooting steps
 - Reference frame numbers when helpful (e.g., "as shown in frame 5")
 - Assume reader is technical but unfamiliar with this specific process
-- Note: Screenshots may have some text redacted for privacy — work around any blurred areas, but focus on what is clearly visible
-- Prioritize clarity and completeness over brevity — better to be thorough than vague
+- **Select KEY FRAMES based on intent understanding - prioritize frames that show outcomes/results over frames that only show actions**
+- **MANDATORY: Include a KEY FRAME reference for the final outcome/result step - readers need to see what success looks like**
+- **CRITICAL: Only use KEY FRAME numbers 1-18 in [FRAME:N] tags. Use a single number per tag (e.g., [FRAME:5], not [FRAME:5-7]). Do not use numbers above 18.**
+- Focus on understanding the user's intent and goal first, then document the steps to achieve it
 """
 
 def encode_image(image_path: str) -> str:
@@ -205,21 +178,20 @@ def analyze_frames_v2(
     key_frame_index = {path: i+1 for i, path in enumerate(key_frame_paths)}
     
     image_content = []
-    # Add instruction at the start about key frames - make it VERY explicit
     num_key_frames = len(key_frame_paths)
+    
+    # Add instruction about valid frame numbers
     image_content.append({
         "type": "text",
-        "text": f"CRITICAL INSTRUCTION: You will see frames labeled as 'KEY FRAME 1', 'KEY FRAME 2', etc. up to 'KEY FRAME {num_key_frames}'. When writing [FRAME:N], you MUST use the number from the KEY FRAME label (1-{num_key_frames}). You will also see frames labeled 'Frame X (not a key frame)' - DO NOT reference these. ONLY reference KEY FRAMES numbered 1-{num_key_frames}. Any other number is INVALID and will be ignored."
+        "text": f"IMPORTANT: You will see frames labeled as 'KEY FRAME 1', 'KEY FRAME 2', etc. up to 'KEY FRAME {num_key_frames}'. When writing [FRAME:N], you MUST use ONLY these KEY FRAME numbers (1-{num_key_frames}). Any number outside this range will be ignored. You will also see frames labeled 'Frame X' (without KEY FRAME) - do not reference these."
     })
     
     for i, path in enumerate(all_frame_paths):
-        # Mark key frames - use ONLY KEY FRAME number to avoid confusion
+        # Mark key frames clearly but simply
         if path in key_frame_set:
-            # Only show KEY FRAME number, not raw frame number, to prevent confusion
             label = f"KEY FRAME {key_frame_index[path]}:"
         else:
-            # Non-key frames just show as regular frames
-            label = f"Frame {i+1} (not a key frame - do not reference):"
+            label = f"Frame {i+1}:"
         
         image_content.append({"type": "text", "text": label})
         image_content.append({

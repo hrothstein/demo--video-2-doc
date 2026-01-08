@@ -91,15 +91,36 @@ def select_key_frames(frame_paths: list[str], max_embed: int = 18) -> list[str]:
         combined_scores.append((i, combined_score))
     
     # Always include first and last (last frame often shows final result)
-    selected_indices = {0, len(frame_paths) - 1}
+    # Also include last 5 frames AND frames in the "completion zone" (last 30%)
+    # This is critical - outcome frames are the most important!
+    last_frame_idx = len(frame_paths) - 1
+    selected_indices = {0}  # Always include first
+    
+    # Always include last 5 frames (they show final results)
+    for i in range(max(0, last_frame_idx - 4), last_frame_idx + 1):
+        selected_indices.add(i)
+    
+    # Also ensure we capture completion/scaffolding frames (typically in last 30% of video)
+    # This catches frames that show completed states before the very end
+    # Be aggressive here - scaffolded/completion frames are critical!
+    completion_zone_start = max(0, int(len(frame_paths) * 0.7))
+    # Include every frame in completion zone (except last 5 which are already included)
+    # This ensures we don't miss the scaffolded project frame
+    for i in range(completion_zone_start, last_frame_idx - 4):  # Don't overlap with last 5
+        selected_indices.add(i)
     
     # Boost scores for frames in the last 30% (often show final results/outcomes)
+    # Also heavily boost the absolute last frames (last 10%) which almost always show outcomes
     last_30_percent_start = int(len(frame_paths) * 0.7)
+    last_10_percent_start = int(len(frame_paths) * 0.9)
     boosted_scores = []
     for idx, score in combined_scores:
-        # Boost frames in last 30% by 30% to prioritize result frames
-        if idx >= last_30_percent_start:
-            boosted_scores.append((idx, score * 1.3))
+        # Heavy boost for last 10% (final outcomes)
+        if idx >= last_10_percent_start:
+            boosted_scores.append((idx, score * 2.0))
+        # Moderate boost for last 30%
+        elif idx >= last_30_percent_start:
+            boosted_scores.append((idx, score * 1.5))
         else:
             boosted_scores.append((idx, score))
     
@@ -118,7 +139,11 @@ def select_key_frames(frame_paths: list[str], max_embed: int = 18) -> list[str]:
         if len(selected_indices) >= max_embed:
             break
         segment = min(idx // segment_size, num_segments - 1)
-        if segment_counts[segment] < frames_per_segment or idx in {0, len(frame_paths) - 1}:
+        # Always prioritize first frame, last 3 frames, and frames in last 10%
+        is_priority_frame = (idx == 0 or 
+                           idx >= len(frame_paths) - 3 or 
+                           idx >= int(len(frame_paths) * 0.9))
+        if segment_counts[segment] < frames_per_segment or is_priority_frame:
             selected_indices.add(idx)
             segment_counts[segment] += 1
     
