@@ -288,8 +288,11 @@
                 'uploaded': { text: 'Uploaded', progress: 20 },
                 'processing': { text: 'Processing...', progress: 30 },
                 'extracting_frames': { text: 'Extracting frames...', progress: 40 },
+                'selecting_key_frames': { text: 'Selecting key frames...', progress: 45 },
+                'detecting_pii': { text: 'Detecting PII...', progress: 50 },
                 'analyzing': { text: 'Analyzing with Azure OpenAI GPT-4o...', progress: 60 },
                 'generating_pdf': { text: 'Generating PDF...', progress: 80 },
+                'ready_for_review': { text: 'Ready for review', progress: 90 },
                 'complete': { text: 'Complete!', progress: 100 },
                 'error': { text: 'Error', progress: 0 }
             };
@@ -301,7 +304,11 @@
                 }
                 const data = await res.json();
                 
-                if (data.status === 'complete') {
+                if (data.status === 'ready_for_review') {
+                    // v2.0: Redirect to review page
+                    window.location.href = `/review.html?job_id=${jobId}`;
+                    return;
+                } else if (data.status === 'complete') {
                     updateStatus('Complete!', 100);
                     downloadLink.href = `/download/${jobId}`;
                     downloadSection.classList.add('visible');
@@ -317,6 +324,16 @@
             } catch (err) {
                 showError(err.message);
             }
+        }
+        
+        // Check for job_id in URL (for redirect back from review)
+        const urlParams = new URLSearchParams(window.location.search);
+        const jobId = urlParams.get('job_id');
+        const complete = urlParams.get('complete');
+        if (jobId && complete === 'true') {
+            // Redirected back from review page after PDF generation
+            currentJobId = jobId;
+            pollStatus(jobId);
         }
         
         function updateStatus(text, progress) {

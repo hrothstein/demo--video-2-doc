@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Review Redactions - Video to Doc</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 2rem;
+            background: #f9fafb;
+        }
+        h1 { margin-bottom: 0.5rem; }
+        .subtitle { color: #6b7280; margin-bottom: 1.5rem; }
+        
+        .controls {
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+        }
+        
+        .frame-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .frame-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .frame-card img {
+            width: 100%;
+            max-width: 800px;
+            display: block;
+        }
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: #6b7280;
+        }
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .frame-info {
+            padding: 1rem;
+        }
+        .frame-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .pii-list {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        .pii-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+        }
+        .pii-item input { cursor: pointer; }
+        .pii-type {
+            background: #fef2f2;
+            color: #dc2626;
+            padding: 0.125rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+        }
+        
+        .actions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .actions button {
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: white;
+            border: 1px solid #d1d5db;
+        }
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+            border: none;
+        }
+        .btn-primary:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        
+        .redaction-mode {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .redaction-mode button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .redaction-mode button.active {
+            background: #2563eb;
+            color: white;
+            border-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Review Redactions</h1>
+    <p class="subtitle">Red boxes show detected PII. Uncheck items you don't want redacted.</p>
+    <p style="font-size: 0.875rem; color: #6b7280; margin-top: -0.5rem;">
+        Note: Manual redaction (drawing boxes) is not available in v2.0. If you need to redact something not detected, 
+        consider re-uploading with the sensitive area cropped out, or edit the PDF afterward.
+    </p>
+    
+    <div class="controls">
+        <span>Redaction style (applies to all frames):</span>
+        <div class="redaction-mode">
+            <button class="active" data-mode="blur">Blur</button>
+            <button data-mode="black">Black box</button>
+            <button data-mode="pixelate">Pixelate</button>
+        </div>
+        
+        <span style="margin-left: auto;">Optional detection:</span>
+        <label><input type="checkbox" id="detectNames"> Person names</label>
+        <label><input type="checkbox" id="detectUrls"> URLs</label>
+    </div>
+    
+    <div class="frame-grid" id="frameGrid">
+        <!-- Populated by JavaScript -->
+    </div>
+    
+    <div class="actions">
+        <button class="btn-secondary" onclick="location.href='/'">Cancel</button>
+        <div>
+            <span id="piiCount">0 items will be redacted</span>
+            <button class="btn-primary" id="generateBtn">Generate PDF</button>
+        </div>
+    </div>
+    
+    <div style="height: 80px;"></div> <!-- Spacer for fixed footer -->
+
+    <script>
+        const jobId = new URLSearchParams(location.search).get('job_id');
+        let reviewData = null;
+        let redactionMode = 'blur';
+        let ocrResults = null;  // Cache OCR results for re-detection
+        
+        async function loadReview() {
+            try {
+                const res = await fetch(`/review/${jobId}`);
+                if (!res.ok) {
+                    throw new Error('Failed to load review data');
+                }
+                reviewData = await res.json();
+                ocrResults = reviewData.ocr_results;  // Store for re-detection
+                renderFrames();
+            } catch (err) {
+                document.getElementById('frameGrid').innerHTML = 
+                    `<div class="loading"><p>Error loading review: ${err.message}</p></div>`;
+            }
+        }
+        
+        function renderFrames() {
+            const grid = document.getElementById('frameGrid');
+            if (!reviewData || !reviewData.frames || reviewData.frames.length === 0) {
+                grid.innerHTML = '<div class="loading"><p>No frames to review</p></div>';
+                return;
+            }
+            
+            grid.innerHTML = reviewData.frames.map((frame, i) => `
+                <div class="frame-card">
+                    <img src="/frame/${jobId}/${frame.id}?preview=true" alt="Frame ${i+1}">
+                    <div class="frame-info">
+                        <div class="frame-title">Key Frame ${i+1}</div>
+                        <div class="pii-list">
+                            ${frame.pii.length === 0 ? '<em>No PII detected</em>' : 
+                              frame.pii.map((p, j) => `
+                                <div class="pii-item">
+                                    <input type="checkbox" checked 
+                                           data-frame="${frame.id}" 
+                                           data-pii="${j}"
+                                           onchange="updateCount()">
+                                    <span class="pii-type">${p.type}</span>
+                                    <span>${maskText(p.text)}</span>
+                                </div>
+                              `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            updateCount();
+        }
+        
+        function maskText(text) {
+            if (text.length <= 4) return '••••';
+            return text.slice(0, 2) + '••••' + text.slice(-2);
+        }
+        
+        function updateCount() {
+            const checked = document.querySelectorAll('.pii-item input:checked').length;
+            document.getElementById('piiCount').textContent = 
+                `${checked} item${checked !== 1 ? 's' : ''} will be redacted`;
+        }
+        
+        document.querySelectorAll('.redaction-mode button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelector('.redaction-mode .active').classList.remove('active');
+                btn.classList.add('active');
+                redactionMode = btn.dataset.mode;
+            });
+        });
+        
+        // Handle optional detection toggles - re-run PII detection
+        document.getElementById('detectNames').addEventListener('change', async () => {
+            await rerunDetection();
+        });
+        document.getElementById('detectUrls').addEventListener('change', async () => {
+            await rerunDetection();
+        });
+        
+        async function rerunDetection() {
+            // Show loading spinner
+            const grid = document.getElementById('frameGrid');
+            grid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Re-running PII detection...</p></div>';
+            
+            // Get enabled optional types
+            const enabledOptional = [];
+            if (document.getElementById('detectNames').checked) enabledOptional.push('person_name');
+            if (document.getElementById('detectUrls').checked) enabledOptional.push('url');
+            
+            // Note: In a real implementation, this would call a backend endpoint to re-run detection
+            // For now, we'll just reload the review page
+            // TODO: Implement backend endpoint for re-detection
+            alert('Re-detection feature requires backend implementation. Reloading page...');
+            location.reload();
+        }
+        
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('generateBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating PDF...';
+            
+            try {
+                // Collect redaction decisions
+                const decisions = {};
+                document.querySelectorAll('.pii-item input').forEach(input => {
+                    const frameId = input.dataset.frame;
+                    const piiIdx = input.dataset.pii;
+                    if (!decisions[frameId]) decisions[frameId] = [];
+                    decisions[frameId].push({
+                        index: parseInt(piiIdx),
+                        redact: input.checked
+                    });
+                });
+                
+                // Submit redaction decisions
+                const res = await fetch(`/redactions/${jobId}`, {
+                    method: 'PUT',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({decisions, mode: redactionMode})
+                });
+                
+                if (!res.ok) {
+                    throw new Error('Failed to save redaction decisions');
+                }
+                
+                // Generate PDF
+                const genRes = await fetch(`/generate/${jobId}`, {method: 'POST'});
+                if (!genRes.ok) {
+                    throw new Error('Failed to generate PDF');
+                }
+                
+                // Poll for completion
+                let attempts = 0;
+                const maxAttempts = 60;
+                const checkComplete = setInterval(async () => {
+                    attempts++;
+                    try {
+                        const statusRes = await fetch(`/status/${jobId}`);
+                        const statusData = await statusRes.json();
+                        
+                        if (statusData.status === 'complete') {
+                            clearInterval(checkComplete);
+                            // Redirect to download
+                            location.href = `/?job_id=${jobId}&complete=true`;
+                        } else if (statusData.status === 'error') {
+                            clearInterval(checkComplete);
+                            alert('PDF generation failed: ' + (statusData.error || 'Unknown error'));
+                            btn.disabled = false;
+                            btn.textContent = 'Generate PDF';
+                        } else if (attempts >= maxAttempts) {
+                            clearInterval(checkComplete);
+                            alert('PDF generation timed out');
+                            btn.disabled = false;
+                            btn.textContent = 'Generate PDF';
+                        }
+                    } catch (err) {
+                        clearInterval(checkComplete);
+                        alert('Error checking status: ' + err.message);
+                        btn.disabled = false;
+                        btn.textContent = 'Generate PDF';
+                    }
+                }, 1000);
+                
+            } catch (err) {
+                alert('Error: ' + err.message);
+                btn.disabled = false;
+                btn.textContent = 'Generate PDF';
+            }
+        });
+        
+        loadReview();
+    </script>
+</body>
+</html>
+
