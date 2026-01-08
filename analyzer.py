@@ -1,8 +1,11 @@
 import base64
 import os
 import time
+import logging
 from openai import AzureOpenAI
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -200,6 +203,12 @@ def analyze_frames_v2(
     key_frame_index = {path: i+1 for i, path in enumerate(key_frame_paths)}
     
     image_content = []
+    # Add instruction at the start about key frames
+    image_content.append({
+        "type": "text",
+        "text": f"IMPORTANT: You will see {len(key_frame_paths)} KEY FRAMES marked as 'KEY FRAME 1', 'KEY FRAME 2', etc. Use these KEY FRAME numbers (1-{len(key_frame_paths)}) in your [FRAME:N] references, NOT the raw frame numbers."
+    })
+    
     for i, path in enumerate(all_frame_paths):
         # Mark key frames
         if path in key_frame_set:
@@ -228,7 +237,20 @@ def analyze_frames_v2(
                 ],
                 max_tokens=4096
             )
-            return response.choices[0].message.content
+            markdown_content = response.choices[0].message.content
+            
+            # Debug: Log the response to see what GPT-4o is actually returning
+            import re
+            frame_refs = re.findall(r'\[FRAME:\d+\]', markdown_content)
+            logger.info(f"GPT-4o returned {len(frame_refs)} frame references in markdown")
+            if frame_refs:
+                logger.info(f"Frame references found: {frame_refs[:10]}")  # First 10
+            else:
+                logger.warning("No frame references found in GPT-4o response!")
+                # Log first 500 chars to see what we got
+                logger.debug(f"First 500 chars of response: {markdown_content[:500]}")
+            
+            return markdown_content
         
         except Exception as e:
             if attempt < max_attempts - 1:
