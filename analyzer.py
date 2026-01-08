@@ -69,7 +69,8 @@ You will receive sequential screenshots from a screen recording of someone perfo
 
 **Step 3: Write Documentation**
 - Create clear, detailed documentation that guides readers to achieve the same outcome
-- Reference the intent-relevant frames you identified in Step 2
+- **CRITICAL: You MUST include [FRAME:N] references** - screenshots are essential for understanding outcomes
+- Reference the intent-relevant frames you identified in Step 2, especially outcome frames
 
 ## Output Format
 
@@ -96,18 +97,21 @@ Return your response in this exact markdown structure:
 ## Notes
 - [Any warnings, tips, or troubleshooting observed]
 
-## Rules for Frame References (Intent-Based Selection)
+## Rules for Frame References (MANDATORY - Intent-Based Selection)
+- **YOU MUST INCLUDE [FRAME:N] REFERENCES** - This is not optional. Screenshots are critical for documentation.
 - Use [FRAME:N] tags to indicate which key frame should appear with each step
 - Place the frame reference on its own line right after the step heading
 - **Frame selection must be based on your understanding of intent**:
   - After understanding what the user is trying to accomplish, select frames that best demonstrate:
-    * The final outcome/result (what was achieved)
+    * **The final outcome/result (what was achieved) - THIS IS MANDATORY**
     * Key milestones (important intermediate achievements)
     * Verification points (how to confirm success)
+- **CRITICAL: You MUST include a frame reference for the final outcome/result step** - readers need to see what success looks like
 - **Select frames that show outcomes, not just actions**: Prioritize frames that show results over frames that only show actions being performed
-- Not every step needs a frame — focus on including frames that are most relevant to understanding and verifying the outcome
+- Include frame references for at least 50% of your steps - more is better
 - A frame can be referenced in multiple steps if relevant
 - Reference frames by their KEY FRAME number (1, 2, 3...), not the raw frame number
+- **If you see a completed project structure, final result, or outcome state, you MUST include a [FRAME:N] reference for it**
 
 ## Writing Rules (CRITICAL - Follow These Closely)
 - Be detailed and specific — include exact text shown in UI for button names, menu items, field labels, popup messages
